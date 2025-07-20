@@ -17,29 +17,42 @@ export async function POST(req: Request) {
   //Create new Svix instate with secret
   const wh = new Webhook(SIGNING_SECRET);
 
-  // Get heaers
+  // Get headers
   const headerPayload = await headers();
   const svix_id = headerPayload.get("svix-id");
   const svix_timestamp = headerPayload.get("svix-timestamp");
   const svix_signature = headerPayload.get("svix-signature");
 
+  // Also try alternative header names that Clerk might use
+  const webhook_id = svix_id || headerPayload.get("webhook-id");
+  const webhook_timestamp = svix_timestamp || headerPayload.get("webhook-timestamp");
+  const webhook_signature = svix_signature || headerPayload.get("webhook-signature");
+
   // if there are no headers error out
-  if (!svix_id || !svix_timestamp || !svix_signature) {
+  if (!webhook_id || !webhook_timestamp || !webhook_signature) {
+    console.error("Missing headers:", {
+      svix_id,
+      svix_timestamp,
+      svix_signature,
+      webhook_id,
+      webhook_timestamp,
+      webhook_signature,
+      allHeaders: Object.fromEntries(headerPayload.entries())
+    });
     return new Response("Missing svix headers", { status: 400 });
   }
 
-  // Get body
-  const payload = await req.json();
-  const body = JSON.stringify(payload);
+  // Get the raw body as text (important for webhook verification)
+  const body = await req.text();
 
   let evt: WebhookEvent;
 
-  // verify playload wiht headers
+  // verify payload with headers
   try {
     evt = wh.verify(body, {
-      id: svix_id,
-      timestamp: svix_timestamp,
-      signature: svix_signature,
+      "svix-id": webhook_id,
+      "svix-timestamp": webhook_timestamp,
+      "svix-signature": webhook_signature,
     }) as WebhookEvent;
   } catch (err) {
     console.error("Error: Could not verify webhook:", err);
@@ -75,7 +88,8 @@ export async function POST(req: Request) {
   if(eventType === "user.updated") {
     const {data} = evt
     await db.update(users).set({
-        name: `${data.first_name} ${data.last_name}`
+        name: `${data.first_name} ${data.last_name}`,
+        imageUrl: data.image_url
     })
     .where(eq(users.clerkId, data.id))
   }

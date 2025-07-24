@@ -1,8 +1,17 @@
 import { create } from "domain";
 import { desc } from "drizzle-orm";
-import { pgTable, uuid, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  uuid,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
 
-export const users = pgTable("users", {
+export const users = pgTable(
+  "users",
+  {
     id: uuid("id").primaryKey().defaultRandom(),
     clerkId: text("clerk_id").unique().notNull(),
     name: text("name").notNull(),
@@ -10,12 +19,36 @@ export const users = pgTable("users", {
     imageUrl: text("image_url").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
-}, (t) => [uniqueIndex("clerk_id_idex").on(t.clerkId)])
+  },
+  (t) => [uniqueIndex("clerk_id_idex").on(t.clerkId)]
+);
 
-export const categories = pgTable("categories", {
+export const categories = pgTable(
+  "categories",
+  {
     id: uuid("id").primaryKey().defaultRandom(),
     name: text("name").notNull().unique(),
     description: text("description"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
-}, (t) => [uniqueIndex("name_index").on(t.name)])
+  },
+  (t) => [uniqueIndex("name_index").on(t.name)]
+);
+
+export const videos = pgTable("videos", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  description: text("description"),
+  userId: uuid("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const videoRelations = relations(videos, ({ one }) => ({
+  user: one(users, {
+    fields: [videos.userId],
+    references: [users.id],
+  }),
+}));

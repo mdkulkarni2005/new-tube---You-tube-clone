@@ -6,13 +6,16 @@ export const videosRouter = createTRPCRouter({
   create: protectedProcedure.mutation(async ({ ctx }) => {
     const { id: userId } = ctx.user;
 
-    const [video] = await db.insert(videos).values({
-      userId,
-      title: "Untitle",
-    }).returning();
+    const [video] = await db
+      .insert(videos)
+      .values({
+        userId,
+        title: "Untitle",
+      })
+      .returning();
 
     return {
-        video: video
-    }
+      video: video,
+    };
   }),
-})
+});
